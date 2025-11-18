@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma de Servicios en Línea</title>
+    <script>
+        // Prevents FOUC (Flash of Unstyled Content)
+        (function() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="index.html">ServiTech</a>
+            <div class="d-flex align-items-center">
+                <a href="cart.html" class="cart-icon me-3">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span id="cart-badge" class="cart-badge" style="display: none;">0</span>
+                </a>
+                <button class="btn btn-secondary me-2" id="theme-toggler">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="#servicios">Servicios</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#contacto">Contacto</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mt-5">
+        <div class="row">
+            <!-- Services Section -->
+            <div class="col-12">
+                <section id="servicios">
+                    <h2 class="mb-4 text-center">Nuestros Servicios</h2>
+                    <!-- Filters and Search -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-2 mb-md-0">
+                            <div class="btn-group w-100" role="group">
+                                <button type="button" class="btn btn-outline-primary filter-btn active" data-category="all">Todos</button>
+                                <button type="button" class="btn btn-outline-primary filter-btn" data-category="tecnologia">Tecnología</button>
+                                <button type="button" class="btn btn-outline-primary filter-btn" data-category="educacion">Educación</button>
+                                <button type="button" class="btn btn-outline-primary filter-btn" data-category="hogar">Hogar</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <input type="text" id="search-bar" class="form-control" placeholder="Buscar servicio por nombre...">
+                        </div>
+                    </div>
+                    <!-- Service Cards Container -->
+                    <div id="service-list" class="row">
+                        <!-- Services will be injected here by jQuery -->
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Contact Section -->
+        <section id="contacto" class="mt-5 pt-5 pb-5 rounded">
+            <div class="container">
+                <h2 class="text-center mb-4">Contacto</h2>
+                <form id="contact-form" class="mx-auto" style="max-width: 600px;" novalidate>
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" required>
+                        <div class="invalid-feedback">Por favor, ingresa tu nombre.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Correo Electrónico</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                        <div class="invalid-feedback">Por favor, ingresa un correo válido.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mensaje" class="form-label">Mensaje</label>
+                        <textarea class="form-control" id="mensaje" name="mensaje" rows="4" required></textarea>
+                        <div class="invalid-feedback">Por favor, escribe tu mensaje.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Enviar Mensaje</button>
+                </form>
+                <div id="form-success-msg" class="alert alert-success mt-3" style="display: none;">
+                    ¡Gracias por tu mensaje! Te contactaremos pronto.
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-white text-center p-3 mt-5">
+        <p>&copy; 2025 ServiTech. Todos los derechos reservados.</p>
+    </footer>
+
+    <!-- Order Confirmation Modal (can be reused on cart page, but keeping it here for now) -->
+    <div class="modal fade" id="order-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Resumen del Pedido</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="order-summary">
+                    <!-- Order summary will be injected here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" id="confirm-purchase-btn" class="btn btn-primary">Confirmar Compra</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Success Message -->
+    <div id="success-alert" class="alert alert-success position-fixed bottom-0 end-0 m-3" style="display:none; z-index: 1050;">
+        <i class="fas fa-check-circle"></i> ¡Pedido realizado con éxito!
+    </div>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="js/main.js"></script>
+</body>
+</html>
