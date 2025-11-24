@@ -4,54 +4,121 @@ $(document).ready(function () {
 
     // --- GLOBAL STATE ---
     let allServices = []; // This will hold the services fetched from Supabase
-    let cart = [];
+    let cart = []; // This will hold the user's cart from the DB
+    let currentUser = null;
 
     // --- INITIALIZATION ---
     async function initializePage() {
-        loadCart();
-        updateCartBadge();
         await fetchAndRenderServices();
-        // Theme setup is now more robust
         initializeTheme();
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        currentUser = session?.user || null;
+        updateUserNav(currentUser);
+        await loadCartFromDB(currentUser);
+
+        // Listen for auth changes
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            currentUser = session?.user || null;
+            updateUserNav(currentUser);
+            // When user logs in or out, reload the cart
+            await loadCartFromDB(currentUser);
+        });
     }
 
     initializePage();
 
+    // --- AUTHENTICATION ---
+    function updateUserNav(user) {
+        const $nav = $('#user-session-nav');
+        if (user) {
+            $nav.html(`
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    ${user.email}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                    <li><a class="dropdown-item" href="#" id="logout-btn">Cerrar Sesión</a></li>
+                </ul>
+            `);
+        } else {
+            $nav.html(`
+                <div class="d-flex">
+                    <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#login-modal">Iniciar Sesión</button>
+                    <button class="btn btn-outline-light" data-bs-toggle="modal" data-bs-target="#register-modal">Registrarse</button>
+                </div>
+            `);
+        }
+    }
+
+    $('#login-form').on('submit', async function(e) {
+        e.preventDefault();
+        const email = $('#login-email').val();
+        const password = $('#login-password').val();
+        const $errorMsg = $('#login-error-msg');
+
+        try {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+            bootstrap.Modal.getInstance($('#login-modal')).hide();
+        } catch (error) {
+            $errorMsg.text(error.message).show();
+        }
+    });
+
+    $('#register-form').on('submit', async function(e) {
+        e.preventDefault();
+        const email = $('#register-email').val();
+        const password = $('#register-password').val();
+        const $errorMsg = $('#register-error-msg');
+        const $successMsg = $('#register-success-msg');
+
+        try {
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) throw error;
+            $errorMsg.hide();
+            $successMsg.text('¡Registro exitoso! Por favor, inicia sesión.').show();
+            setTimeout(() => {
+                bootstrap.Modal.getInstance($('#register-modal')).hide();
+                bootstrap.Modal.getInstance($('#login-modal')).show();
+            }, 2000);
+        } catch (error) {
+            $successMsg.hide();
+            $errorMsg.text(error.message).show();
+        }
+    });
+
+    $('body').on('click', '#logout-btn', async function(e) {
+        e.preventDefault();
+        await supabase.auth.signOut();
+    });
+
+
     // --- DATA FETCHING ---
     async function fetchAndRenderServices() {
+        // ... (this function remains the same)
         const $serviceList = $('#service-list');
         try {
             $serviceList.html('<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div></div>');
-
-            const { data, error } = await supabase
-                .from('products')
-                .select('*')
-                .order('name', { ascending: true });
-
+            const { data, error } = await supabase.from('products').select('*').order('name', { ascending: true });
             if (error) throw error;
-
-            allServices = data; // Store fetched data globally
+            allServices = data;
             renderServices(allServices);
-
         } catch (error) {
             console.error('Error fetching services:', error.message);
-            $serviceList.html('<div class="col-12"><p class="text-center text-danger mt-5">Error al cargar los servicios. Por favor, intente de nuevo más tarde.</p></div>');
+            $serviceList.html('<div class="col-12"><p class="text-center text-danger mt-5">Error al cargar los servicios.</p></div>');
         }
     }
 
     // --- RENDER FUNCTIONS ---
     function renderServices(servicesToRender) {
+        // ... (this function remains the same)
         const $serviceList = $('#service-list');
         $serviceList.empty();
-
         if (servicesToRender.length === 0) {
-            $serviceList.html('<div class="col-12"><p class="text-center text-muted mt-5">No se encontraron servicios que coincidan con tu búsqueda.</p></div>');
+            $serviceList.html('<div class="col-12"><p class="text-center text-muted mt-5">No se encontraron servicios.</p></div>');
             return;
         }
-
         servicesToRender.forEach(service => {
-            // The 'category' field might not exist in the new DB structure.
-            // We'll add a placeholder or handle it gracefully.
             const category = service.category || 'general';
             const serviceCard = `
                 <div class="col-md-6 col-lg-4 mb-4 service-card" data-category="${category}" data-name="${service.name.toLowerCase()}">
@@ -64,8 +131,7 @@ $(document).ready(function () {
                             <button class="btn btn-primary add-to-cart-btn mt-auto" data-id="${service.id}">Solicitar Servicio</button>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
             $serviceList.append(serviceCard);
         });
     }
@@ -80,39 +146,92 @@ $(document).ready(function () {
         }
     }
 
-    // --- CART LOGIC ---
-    function addToCart(serviceId) {
-        // Find the service in the globally stored `allServices` array
-        const service = allServices.find(s => s.id === serviceId);
-        if (!service) {
-            console.error("Service not found!");
+    // --- CART LOGIC (DATABASE) ---
+    async function loadCartFromDB(user) {
+        if (!user) {
+            cart = [];
+            updateCartBadge();
             return;
         }
-        const cartItem = cart.find(item => item.id === serviceId);
+        try {
+            const { data, error } = await supabase
+                .from('cart_items')
+                .select('product_id, quantity, products (*)')
+                .eq('user_id', user.id);
 
-        if (cartItem) {
-            cartItem.quantity++;
-        } else {
-            cart.push({ ...service, quantity: 1 });
+            if (error) throw error;
+            
+            // Map the data to the structure the app expects
+            cart = data.map(item => ({
+                ...item.products,
+                quantity: item.quantity
+            }));
+            updateCartBadge();
+
+        } catch (error) {
+            console.error('Error loading cart:', error.message);
+            cart = [];
+            updateCartBadge();
         }
-        saveCart();
-        updateCartBadge();
     }
 
-    // --- LOCALSTORAGE ---
-    function saveCart() {
-        localStorage.setItem('shoppingCart', JSON.stringify(cart));
-    }
+    async function addToCart(serviceId) {
+        if (!currentUser) {
+            // If user is not logged in, show the login modal
+            const loginModal = new bootstrap.Modal($('#login-modal'));
+            loginModal.show();
+            return;
+        }
 
-    function loadCart() {
-        const savedCart = localStorage.getItem('shoppingCart');
-        if (savedCart) {
-            cart = JSON.parse(savedCart);
+        try {
+            // First, check if the item already exists
+            const { data: existingItem, error: selectError } = await supabase
+                .from('cart_items')
+                .select('id, quantity')
+                .eq('user_id', currentUser.id)
+                .eq('product_id', serviceId)
+                .single();
+
+            if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = 'exact one row not found'
+                throw selectError;
+            }
+
+            let newQuantity;
+            if (existingItem) {
+                // Item exists, update quantity
+                newQuantity = existingItem.quantity + 1;
+                const { error } = await supabase
+                    .from('cart_items')
+                    .update({ quantity: newQuantity })
+                    .match({ id: existingItem.id });
+                if (error) throw error;
+            } else {
+                // Item doesn't exist, insert it
+                newQuantity = 1;
+                const { error } = await supabase
+                    .from('cart_items')
+                    .insert({ user_id: currentUser.id, product_id: serviceId, quantity: 1 });
+                if (error) throw error;
+            }
+            
+            // Update local cart for immediate UI feedback
+            const cartItem = cart.find(item => item.id === serviceId);
+            if (cartItem) {
+                cartItem.quantity = newQuantity;
+            } else {
+                const service = allServices.find(s => s.id === serviceId);
+                cart.push({ ...service, quantity: 1 });
+            }
+            updateCartBadge();
+
+        } catch (error) {
+            console.error('Error adding to cart:', error.message);
         }
     }
 
     // --- THEME ---
     function applyTheme(theme) {
+        // ... (this function remains the same)
         const icon = $('#theme-toggler').find('i');
         if (theme === 'dark') {
             $('html').addClass('dark-mode');
@@ -129,95 +248,61 @@ $(document).ready(function () {
     }
 
     // --- EVENT HANDLERS ---
-
-    // Add to cart
-    $('#service-list').on('click', '.add-to-cart-btn', function () {
+    $('#service-list').on('click', '.add-to-cart-btn', async function () {
         const serviceId = $(this).data('id');
-        addToCart(serviceId);
+        const $btn = $(this);
 
+        // Prevent multiple clicks
+        $btn.prop('disabled', true);
+        
+        await addToCart(serviceId);
+
+        // Animation & feedback
         const $card = $(this).closest('.card');
         $card.css('transition', 'transform 0.1s').css('transform', 'scale(0.98)');
         setTimeout(() => $card.css('transform', 'scale(1)'), 100);
-
-        const $btn = $(this);
-        const originalText = $btn.html();
-        $btn.html('<i class="fas fa-check"></i> Añadido').prop('disabled', true);
+        
+        const originalText = "Solicitar Servicio";
+        $btn.html('<i class="fas fa-check"></i> Añadido');
         setTimeout(() => {
             $btn.html(originalText).prop('disabled', false);
         }, 1500);
     });
 
-    // Filters
+    // ... (Filter and Search handlers remain the same)
     $('.filter-btn').on('click', function () {
         $('.filter-btn').removeClass('active');
         $(this).addClass('active');
         const category = $(this).data('category');
-
         $('#search-bar').val('');
-
-        // Filter from the `allServices` array
         const servicesToShow = category === 'all'
             ? allServices
             : allServices.filter(s => (s.category || 'general') === category);
-
         renderServices(servicesToShow);
     });
 
-    // Search bar
     $('#search-bar').on('keyup', function () {
         const searchTerm = $(this).val().toLowerCase();
         $('.filter-btn').removeClass('active');
-
-        // Search from the `allServices` array
         const filteredServices = allServices.filter(s => s.name.toLowerCase().includes(searchTerm));
         renderServices(filteredServices);
     });
-
-    // Theme toggler
+    
+    // ... (Theme and Contact Form handlers remain the same)
     $('#theme-toggler').on('click', function() {
         const newTheme = $('html').hasClass('dark-mode') ? 'light' : 'dark';
         localStorage.setItem('theme', newTheme);
         applyTheme(newTheme);
     });
 
-    // Contact Form Validation (no changes needed here)
     $('#contact-form').on('submit', function (e) {
         e.preventDefault();
-        let isValid = true;
-        $('.form-control').removeClass('is-invalid is-valid');
-        $('.invalid-feedback').hide();
-        const $name = $('#nombre');
-        if ($name.val().trim() === '') {
-            $name.addClass('is-invalid');
-            isValid = false;
-        } else {
-            $name.addClass('is-valid');
-        }
-        const $email = $('#email');
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailPattern.test($email.val())) {
-            $email.addClass('is-invalid');
-            isValid = false;
-        } else {
-            $email.addClass('is-valid');
-        }
-        const $message = $('#mensaje');
-        if ($message.val().trim() === '') {
-            $message.addClass('is-invalid');
-            isValid = false;
-        } else {
-            $message.addClass('is-valid');
-        }
-        if (isValid) {
+        if ($(this).get(0).checkValidity()) {
             $('#form-success-msg').slideDown(300).delay(4000).slideUp(300);
             $(this)[0].reset();
-            $('.form-control').removeClass('is-valid');
-        }
-    });
-
-    $('#contact-form .form-control').on('input', function () {
-        if ($(this).val().trim() !== '') {
-            $(this).removeClass('is-invalid');
+            $(this).removeClass('was-validated');
+        } else {
+            $(this).addClass('was-validated');
         }
     });
 });

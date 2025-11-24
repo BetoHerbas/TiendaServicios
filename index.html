@@ -46,6 +46,10 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="#servicios">Servicios</a></li>
                     <li class="nav-item"><a class="nav-link" href="#contacto">Contacto</a></li>
+                    <!-- Auth buttons will be injected here -->
+                    <li class="nav-item dropdown" id="user-session-nav">
+                        <!-- This content will be dynamic based on auth state -->
+                    </li>
                 </ul>
             </div>
         </div>
@@ -111,8 +115,62 @@
 
     <!-- Footer -->
     <footer class="text-white text-center p-3 mt-5">
-        <p>&copy; 2025 ServiTech. Todos los derechos reservados.</p>
+        <p>&copy; 2025 ServiTech. Todos los derechos reservados. | <a href="admin.html" class="text-white">Admin</a></p>
     </footer>
+
+    <!-- Modals -->
+    <!-- Login Modal -->
+    <div class="modal fade" id="login-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Iniciar Sesión</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="login-form">
+                        <div class="mb-3">
+                            <label for="login-email" class="form-label">Correo Electrónico</label>
+                            <input type="email" class="form-control" id="login-email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="login-password" class="form-label">Contraseña</label>
+                            <input type="password" class="form-control" id="login-password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Entrar</button>
+                        <div id="login-error-msg" class="alert alert-danger mt-3" style="display: none;"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div class="modal fade" id="register-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrarse</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="register-form">
+                        <div class="mb-3">
+                            <label for="register-email" class="form-label">Correo Electrónico</label>
+                            <input type="email" class="form-control" id="register-email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="register-password" class="form-label">Contraseña</label>
+                            <input type="password" class="form-control" id="register-password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Crear Cuenta</button>
+                        <div id="register-error-msg" class="alert alert-danger mt-3" style="display: none;"></div>
+                        <div id="register-success-msg" class="alert alert-success mt-3" style="display: none;"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Order Confirmation Modal (can be reused on cart page, but keeping it here for now) -->
     <div class="modal fade" id="order-modal" tabindex="-1">
