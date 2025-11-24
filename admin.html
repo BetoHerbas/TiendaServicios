@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - ServiTech</title>
+    <script>
+        // Prevents FOUC (Flash of Unstyled Content)
+        (function() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="index.html">ServiTech</a>
+            <div class="d-flex align-items-center">
+                <a href="cart.html" class="cart-icon me-3">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span id="cart-badge" class="cart-badge" style="display: none;">0</span>
+                </a>
+                <button class="btn btn-secondary me-2" id="theme-toggler">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mt-5">
+        <div id="admin-container">
+            <h2 class="text-center mb-4">Panel de Administración</h2>
+
+            <!-- Login Form -->
+            <div id="login-section" class="mx-auto" style="max-width: 500px;">
+                <form id="login-form">
+                    <div class="mb-3">
+                        <label for="login-email" class="form-label">Correo Electrónico</label>
+                        <input type="email" class="form-control" id="login-email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="login-password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="login-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
+                    <div id="login-error" class="alert alert-danger mt-3" style="display: none;"></div>
+                </form>
+            </div>
+
+            <!-- Admin Content (Hidden by default) -->
+            <div id="admin-content" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3>Bienvenido, Admin</h3>
+                    <button id="logout-btn" class="btn btn-danger">Cerrar Sesión</button>
+                </div>
+
+                <!-- Add Product Form -->
+                <section id="add-product-section" class="card">
+                    <div class="card-body">
+                        <h4 class="card-title mb-4">Añadir Nuevo Producto</h4>
+                        <form id="add-product-form">
+                            <div class="mb-3">
+                                <label for="product-name" class="form-label">Nombre del Producto</label>
+                                <input type="text" class="form-control" id="product-name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="product-description" class="form-label">Descripción</label>
+                                <textarea class="form-control" id="product-description" rows="3" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="product-price" class="form-label">Precio</label>
+                                <input type="number" class="form-control" id="product-price" step="0.01" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="product-image" class="form-label">URL de la Imagen</label>
+                                <input type="text" class="form-control" id="product-image" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">Añadir Producto</button>
+                            <div id="product-success" class="alert alert-success mt-3" style="display: none;"></div>
+                            <div id="product-error" class="alert alert-danger mt-3" style="display: none;"></div>
+                        </form>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-white text-center p-3 mt-5">
+        <p>&copy; 2025 ServiTech. Todos los derechos reservados.</p>
+    </footer>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Supabase & Custom JS -->
+    <script type="module" src="js/supabase-client.js"></script>
+    <script type="module" src="js/admin.js"></script>
+</body>
+</html>

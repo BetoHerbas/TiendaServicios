@@ -1,77 +1,47 @@
+import { supabase } from './supabase-client.js';
+
 $(document).ready(function () {
 
-    // --- DATA ---
-    const services = [
-        {
-            id: 1,
-            name: 'Desarrollo Web Pro',
-            description: 'Creación de sitios web a medida.',
-            price: 1500,
-            image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80',
-            category: 'tecnologia'
-        },
-        {
-            id: 2,
-            name: 'Marketing Digital',
-            description: 'Estrategias para impulsar tu marca.',
-            price: 800,
-            image: 'https://images.unsplash.com/photo-1508830524289-0adcbe822b40?auto=format&fit=crop&w=800&q=80',
-            category: 'tecnologia'
-        },
-        {
-            id: 3,
-            name: 'Clases de Guitarra',
-            description: 'Aprende a tocar desde cero.',
-            price: 50,
-            image: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=800&q=80',
-            category: 'educacion'
-        },
-        {
-            id: 4,
-            name: 'Asesoría Financiera',
-            description: 'Organiza tus finanzas personales.',
-            price: 200,
-            image: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=800&q=80',
-            category: 'educacion'
-        },
-        {
-            id: 5,
-            name: 'Jardinería a Domicilio',
-            description: 'Mantenimiento de jardines y patios.',
-            price: 75,
-            image: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=800&q=80',
-            category: 'hogar'
-        },
-        {
-            id: 6,
-            name: 'Limpieza Profesional',
-            description: 'Servicio de limpieza para casas.',
-            price: 90,
-            image: 'https://limpiezasbrillo.com/wp-content/uploads/2018/08/limpieza-a-fondo-del-hogar-1-1111x480.jpg',
-            category: 'hogar'
-        },
-        {
-            id: 7,
-            name: 'Soporte Técnico IT',
-            description: 'Solución a problemas informáticos.',
-            price: 120,
-            image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
-            category: 'tecnologia'
-        }
-    ];
-
-
+    // --- GLOBAL STATE ---
+    let allServices = []; // This will hold the services fetched from Supabase
     let cart = [];
 
     // --- INITIALIZATION ---
-    loadCart();
-    renderServices(services);
-    updateCartBadge();
+    async function initializePage() {
+        loadCart();
+        updateCartBadge();
+        await fetchAndRenderServices();
+        // Theme setup is now more robust
+        initializeTheme();
+    }
+
+    initializePage();
+
+    // --- DATA FETCHING ---
+    async function fetchAndRenderServices() {
+        const $serviceList = $('#service-list');
+        try {
+            $serviceList.html('<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div></div>');
+
+            const { data, error } = await supabase
+                .from('products')
+                .select('*')
+                .order('name', { ascending: true });
+
+            if (error) throw error;
+
+            allServices = data; // Store fetched data globally
+            renderServices(allServices);
+
+        } catch (error) {
+            console.error('Error fetching services:', error.message);
+            $serviceList.html('<div class="col-12"><p class="text-center text-danger mt-5">Error al cargar los servicios. Por favor, intente de nuevo más tarde.</p></div>');
+        }
+    }
 
     // --- RENDER FUNCTIONS ---
     function renderServices(servicesToRender) {
         const $serviceList = $('#service-list');
-        // Clear the list before rendering to prevent duplication (fixes bug)
         $serviceList.empty();
 
         if (servicesToRender.length === 0) {
@@ -80,14 +50,17 @@ $(document).ready(function () {
         }
 
         servicesToRender.forEach(service => {
+            // The 'category' field might not exist in the new DB structure.
+            // We'll add a placeholder or handle it gracefully.
+            const category = service.category || 'general';
             const serviceCard = `
-                <div class="col-md-6 col-lg-4 mb-4 service-card" data-category="${service.category}" data-name="${service.name.toLowerCase()}">
+                <div class="col-md-6 col-lg-4 mb-4 service-card" data-category="${category}" data-name="${service.name.toLowerCase()}">
                     <div class="card h-100">
                         <img src="${service.image}" class="card-img-top" alt="${service.name}">
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title">${service.name}</h5>
                             <p class="card-text flex-grow-1">${service.description}</p>
-                            <p class="card-text fs-5 fw-bold text-primary">$${service.price.toFixed(2)}</p>
+                            <p class="card-text fs-5 fw-bold text-primary">$${Number(service.price).toFixed(2)}</p>
                             <button class="btn btn-primary add-to-cart-btn mt-auto" data-id="${service.id}">Solicitar Servicio</button>
                         </div>
                     </div>
@@ -109,7 +82,12 @@ $(document).ready(function () {
 
     // --- CART LOGIC ---
     function addToCart(serviceId) {
-        const service = services.find(s => s.id === serviceId);
+        // Find the service in the globally stored `allServices` array
+        const service = allServices.find(s => s.id === serviceId);
+        if (!service) {
+            console.error("Service not found!");
+            return;
+        }
         const cartItem = cart.find(item => item.id === serviceId);
 
         if (cartItem) {
@@ -134,14 +112,20 @@ $(document).ready(function () {
     }
 
     // --- THEME ---
-    function loadTheme() {
-        if (localStorage.getItem('theme') === 'dark') {
-            $('body').addClass('dark-mode');
-            $('#theme-toggler i').removeClass('fa-moon').addClass('fa-sun');
+    function applyTheme(theme) {
+        const icon = $('#theme-toggler').find('i');
+        if (theme === 'dark') {
+            $('html').addClass('dark-mode');
+            icon.removeClass('fa-moon').addClass('fa-sun');
         } else {
-            $('body').removeClass('dark-mode');
-            $('#theme-toggler i').removeClass('fa-sun').addClass('fa-moon');
+            $('html').removeClass('dark-mode');
+            icon.removeClass('fa-sun').addClass('fa-moon');
         }
+    }
+
+    function initializeTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
     }
 
     // --- EVENT HANDLERS ---
@@ -151,12 +135,10 @@ $(document).ready(function () {
         const serviceId = $(this).data('id');
         addToCart(serviceId);
 
-        // Animation effect
         const $card = $(this).closest('.card');
         $card.css('transition', 'transform 0.1s').css('transform', 'scale(0.98)');
         setTimeout(() => $card.css('transform', 'scale(1)'), 100);
 
-        // Show added confirmation
         const $btn = $(this);
         const originalText = $btn.html();
         $btn.html('<i class="fas fa-check"></i> Añadido').prop('disabled', true);
@@ -171,11 +153,12 @@ $(document).ready(function () {
         $(this).addClass('active');
         const category = $(this).data('category');
 
-        $('#search-bar').val(''); // Reset search bar
+        $('#search-bar').val('');
 
+        // Filter from the `allServices` array
         const servicesToShow = category === 'all'
-            ? services
-            : services.filter(s => s.category === category);
+            ? allServices
+            : allServices.filter(s => (s.category || 'general') === category);
 
         renderServices(servicesToShow);
     });
@@ -183,50 +166,26 @@ $(document).ready(function () {
     // Search bar
     $('#search-bar').on('keyup', function () {
         const searchTerm = $(this).val().toLowerCase();
-
-        // Deactivate category filters when searching
         $('.filter-btn').removeClass('active');
 
-        const filteredServices = services.filter(s => s.name.toLowerCase().includes(searchTerm));
+        // Search from the `allServices` array
+        const filteredServices = allServices.filter(s => s.name.toLowerCase().includes(searchTerm));
         renderServices(filteredServices);
     });
 
-        // Theme toggler
+    // Theme toggler
+    $('#theme-toggler').on('click', function() {
+        const newTheme = $('html').hasClass('dark-mode') ? 'light' : 'dark';
+        localStorage.setItem('theme', newTheme);
+        applyTheme(newTheme);
+    });
 
-        $('#theme-toggler').on('click', function() {
-
-            // Target 'html' to be consistent with the FOUC script
-
-            $('html').toggleClass('dark-mode');
-
-            const icon = $(this).find('i');
-
-            
-
-            if ($('html').hasClass('dark-mode')) {
-
-                localStorage.setItem('theme', 'dark');
-
-                icon.removeClass('fa-moon').addClass('fa-sun');
-
-            } else {
-
-                localStorage.setItem('theme', 'light');
-
-                icon.removeClass('fa-sun').addClass('fa-moon');
-
-            }
-
-        });
-
-    // Contact Form Validation
+    // Contact Form Validation (no changes needed here)
     $('#contact-form').on('submit', function (e) {
         e.preventDefault();
         let isValid = true;
-
         $('.form-control').removeClass('is-invalid is-valid');
         $('.invalid-feedback').hide();
-
         const $name = $('#nombre');
         if ($name.val().trim() === '') {
             $name.addClass('is-invalid');
@@ -234,7 +193,6 @@ $(document).ready(function () {
         } else {
             $name.addClass('is-valid');
         }
-
         const $email = $('#email');
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailPattern.test($email.val())) {
@@ -243,7 +201,6 @@ $(document).ready(function () {
         } else {
             $email.addClass('is-valid');
         }
-
         const $message = $('#mensaje');
         if ($message.val().trim() === '') {
             $message.addClass('is-invalid');
@@ -251,7 +208,6 @@ $(document).ready(function () {
         } else {
             $message.addClass('is-valid');
         }
-
         if (isValid) {
             $('#form-success-msg').slideDown(300).delay(4000).slideUp(300);
             $(this)[0].reset();
@@ -265,3 +221,4 @@ $(document).ready(function () {
         }
     });
 });
+
